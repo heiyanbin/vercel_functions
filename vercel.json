@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "api/mmd2svg/index.js": {
+      "memory": 1024
+    },
+    "api/greet/index.js": {
+      "memory": 1024
+    }
+  }
+}
