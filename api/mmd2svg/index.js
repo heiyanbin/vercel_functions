@@ -1,36 +1,56 @@
 
 const express = require('express');
-const https = require('https');
+const { exec } = require('child_process');
+const fs = require('fs').promises;
+const path = require('path');
 
 const app = express();
 
 app.use(express.text());
 
-app.post('/api/mmd2svg', (req, res) => {
-    const mermaidText = req.body;
-    if (!mermaidText) {
-        return res.status(400).send('Mermaid text is required');
-    }
+app.post('/api/mmd2svg', async (req, res) => {
+    try {
+        const mermaidText = req.body;
+        if (!mermaidText) {
+            return res.status(400).send('Mermaid text is required');
+        }
 
-    const encodedMermaid = Buffer.from(mermaidText).toString('base64url');
+        const inputFilePath = path.join('/tmp', `input-${Date.now()}.mmd`);
+        const outputFilePath = path.join('/tmp', `output-${Date.now()}.svg`);
 
-    const options = {
-        hostname: 'mermaid.ink',
-        path: `/svg/${encodedMermaid}`,
-        method: 'GET'
-    };
+        await fs.writeFile(inputFilePath, mermaidText);
 
-    const proxyReq = https.request(options, (proxyRes) => {
-        res.writeHead(proxyRes.statusCode, proxyRes.headers);
-        proxyRes.pipe(res, { end: true });
-    });
+        const command = `mmdc -i ${inputFilePath} -o ${outputFilePath}`;
 
-    proxyReq.on('error', (e) => {
-        console.error(e);
+        exec(command, async (error, stdout, stderr) => {
+            if (error) {
+                console.error(`exec error: ${error}`);
+                console.error(`stderr: ${stderr}`);
+                await fs.unlink(inputFilePath);
+                if (fs.existsSync(outputFilePath)) {
+                    await fs.unlink(outputFilePath);
+                }
+                return res.status(500).send(`Failed to convert mermaid to svg: ${stderr}`);
+            }
+
+            try {
+                const svg = await fs.readFile(outputFilePath, 'utf8');
+                res.setHeader('Content-Type', 'image/svg+xml');
+                res.send(svg);
+            } catch (readError) {
+                console.error('Error reading SVG file:', readError);
+                return res.status(500).send('Failed to read generated SVG');
+            } finally {
+                await fs.unlink(inputFilePath);
+                await fs.unlink(outputFilePath);
+            }
+        });
+
+    } catch (e) {
+        console.error('Server error:', e);
         res.status(500).send('Failed to convert mermaid to svg');
-    });
-
-    proxyReq.end();
+    }
 });
 
 module.exports = app;
+
