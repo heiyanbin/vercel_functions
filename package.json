@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "postinstall": "ls -la node_modules/.bin/ && echo \"✅ mmdc should be here if installed correctly\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
