@@ -11,8 +11,11 @@ app.post('/api/mmd2svg', async (req, res) => {
         if (!mermaidText) {
             return res.status(400).send('Mermaid text is required');
         }
-
-        const outputFormat = req.query.output_format.trim();
+        
+        let outputFormat = "svg"
+        if (req.query.output_format) {
+            outputFormat = req.query.output_format.trim()
+        }
 
         // Compress and encode mermaid text to URL-safe base64
         const data = Buffer.from(mermaidText, 'utf8');
