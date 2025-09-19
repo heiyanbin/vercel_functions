@@ -20,7 +20,7 @@ app.post('/api/mmd2svg', async (req, res) => {
 
         await fs.writeFile(inputFilePath, mermaidText);
 
-        const command = `mmdc -i ${inputFilePath} -o ${outputFilePath}`;
+        const command = `./node_modules/.bin/mmdc -i ${inputFilePath} -o ${outputFilePath}`;
 
         exec(command, async (error, stdout, stderr) => {
             if (error) {
