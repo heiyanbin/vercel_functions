@@ -1,9 +1,6 @@
-
 const express = require('express');
-const { exec } = require('child_process');
-const fs = require('fs'); // For existsSync
-const fsp = require('fs').promises; // For async file operations
-const path = require('path');
+const { default: fetch } = require('node-fetch');
+const pako = require('pako');
 
 const app = express();
 
@@ -16,39 +13,28 @@ app.post('/api/mmd2svg', async (req, res) => {
             return res.status(400).send('Mermaid text is required');
         }
 
-        const inputFilePath = path.join('/tmp', `input-${Date.now()}.mmd`);
-        const outputFilePath = path.join('/tmp', `output-${Date.now()}.svg`);
+        // Compress and encode mermaid text to URL-safe base64
+        const data = Buffer.from(mermaidText, 'utf8');
+        const compressed = pako.deflate(data, { level: 9 });
+        const base64Mermaid = Buffer.from(compressed)
+            .toString('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_');
 
-        await fsp.writeFile(inputFilePath, mermaidText);
+        const krokiUrl = `https://kroki.io/mermaid/svg/${base64Mermaid}`;
 
-        const command = `./node_modules/.bin/mmdc -i ${inputFilePath} -o ${outputFilePath}`;
+        const response = await fetch(krokiUrl);
 
-        exec(command, async (error, stdout, stderr) => {
-            if (error) {
-                console.error(`exec error: ${error}`);
-                console.error(`stderr: ${stderr}`);
-                await fsp.unlink(inputFilePath);
-                try {
-                    await fsp.access(outputFilePath);
-                    await fsp.unlink(outputFilePath);
-                } catch (accessError) {
-                    // File does not exist, or other access error, no need to unlink
-                }
-                return res.status(500).send(`Failed to convert mermaid to svg: ${stderr}`);
-            }
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Kroki API error: ${response.status} - ${errorText}`);
+            return res.status(response.status).send(`Kroki API error: ${errorText}`);
+        }
 
-            try {
-                const svg = await fsp.readFile(outputFilePath, 'utf8');
-                res.setHeader('Content-Type', 'image/svg+xml');
-                res.send(svg);
-            } catch (readError) {
-                console.error('Error reading SVG file:', readError);
-                return res.status(500).send('Failed to read generated SVG');
-            } finally {
-                await fsp.unlink(inputFilePath);
-                await fsp.unlink(outputFilePath);
-            }
-        });
+        const svg = await response.text();
+
+        res.setHeader('Content-Type', 'image/svg+xml');
+        res.send(svg);
 
     } catch (e) {
         console.error('Server error:', e);
@@ -57,4 +43,3 @@ app.post('/api/mmd2svg', async (req, res) => {
 });
 
 module.exports = app;
-
