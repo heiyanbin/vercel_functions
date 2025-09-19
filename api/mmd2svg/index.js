@@ -12,6 +12,8 @@ app.post('/api/mmd2svg', async (req, res) => {
             return res.status(400).send('Mermaid text is required');
         }
 
+        const outputFormat = req.query.output_format.trim();
+
         // Compress and encode mermaid text to URL-safe base64
         const data = Buffer.from(mermaidText, 'utf8');
         const compressed = pako.deflate(data, { level: 9 });
@@ -20,7 +22,7 @@ app.post('/api/mmd2svg', async (req, res) => {
             .replace(/\+/g, '-')
             .replace(/\//g, '_');
 
-        const krokiUrl = `https://kroki.io/mermaid/svg/${base64Mermaid}`;
+        const krokiUrl = `https://kroki.io/mermaid/${outputFormat}/${base64Mermaid}`;
 
         const response = await fetch(krokiUrl);
 
@@ -30,10 +32,14 @@ app.post('/api/mmd2svg', async (req, res) => {
             return res.status(response.status).send(`Kroki API error: ${errorText}`);
         }
 
-        const svg = await response.text();
+        const output = await response.buffer(); // Get buffer for both SVG and PNG
 
-        res.setHeader('Content-Type', 'image/svg+xml');
-        res.send(svg);
+        if (outputFormat === 'png') {
+            res.setHeader('Content-Type', 'image/png');
+        } else {
+            res.setHeader('Content-Type', 'image/svg+xml');
+        }
+        res.send(output);
 
     } catch (e) {
         console.error('Server error:', e);
