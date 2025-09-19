@@ -35,11 +35,13 @@ app.post('/api/mmd2svg', async (req, res) => {
             return res.status(response.status).send(`Kroki API error: ${errorText}`);
         }
 
-        const output = await response.buffer(); // Get buffer for both SVG and PNG
+        const arrayBuffer = await response.arrayBuffer();
+        const output = Buffer.from(arrayBuffer);
 
         if (outputFormat === 'png') {
             res.setHeader('Content-Type', 'image/png');
-        } else {
+        }
+        else {
             res.setHeader('Content-Type', 'image/svg+xml');
         }
         res.send(output);
