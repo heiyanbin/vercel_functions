@@ -1,7 +1,8 @@
 
 const express = require('express');
 const { exec } = require('child_process');
-const fs = require('fs').promises;
+const fs = require('fs'); // For existsSync
+const fsp = require('fs').promises; // For async file operations
 const path = require('path');
 
 const app = express();
@@ -18,31 +19,34 @@ app.post('/api/mmd2svg', async (req, res) => {
         const inputFilePath = path.join('/tmp', `input-${Date.now()}.mmd`);
         const outputFilePath = path.join('/tmp', `output-${Date.now()}.svg`);
 
-        await fs.writeFile(inputFilePath, mermaidText);
+        await fsp.writeFile(inputFilePath, mermaidText);
 
-        const command = `npx mmdc -i ${inputFilePath} -o ${outputFilePath}`;
+        const command = `./node_modules/.bin/mmdc -i ${inputFilePath} -o ${outputFilePath}`;
 
         exec(command, async (error, stdout, stderr) => {
             if (error) {
                 console.error(`exec error: ${error}`);
                 console.error(`stderr: ${stderr}`);
-                await fs.unlink(inputFilePath);
-                if (fs.existsSync(outputFilePath)) {
-                    await fs.unlink(outputFilePath);
+                await fsp.unlink(inputFilePath);
+                try {
+                    await fsp.access(outputFilePath);
+                    await fsp.unlink(outputFilePath);
+                } catch (accessError) {
+                    // File does not exist, or other access error, no need to unlink
                 }
                 return res.status(500).send(`Failed to convert mermaid to svg: ${stderr}`);
             }
 
             try {
-                const svg = await fs.readFile(outputFilePath, 'utf8');
+                const svg = await fsp.readFile(outputFilePath, 'utf8');
                 res.setHeader('Content-Type', 'image/svg+xml');
                 res.send(svg);
             } catch (readError) {
                 console.error('Error reading SVG file:', readError);
                 return res.status(500).send('Failed to read generated SVG');
             } finally {
-                await fs.unlink(inputFilePath);
-                await fs.unlink(outputFilePath);
+                await fsp.unlink(inputFilePath);
+                await fsp.unlink(outputFilePath);
             }
         });
 
