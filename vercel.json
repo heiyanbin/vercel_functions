@@ -5,6 +5,9 @@
     },
     "api/greet/index.js": {
       "memory": 1024
+    },
+    "api/sub/index.js": {
+      "memory": 1024
     }
   }
 }
