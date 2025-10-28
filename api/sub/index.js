@@ -6,7 +6,7 @@ app.get('/api/sub', async (req, res) => {
     const url = "https://blogzone.me/link/Gzx1eQIbsYnc3wTY2co0SkrcgdX8oeA6x6cY05qvQzHRtr1IjNerHBH?clash=1"
     const r = await fetch(url)
     const text = await r.text()
-    res.status(r.status).send(text)
+    res.type("application/x-yaml").status(r.status).send(text)
 });
 
 module.exports = app;
